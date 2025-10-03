@@ -87,8 +87,8 @@ class _SnellenChartScreenState extends State<SnellenChartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Snellen Chart Test'),
-        backgroundColor: const Color(0xFF1A237E),
+        title: const Text('Snellen Test', style: const TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF19BED5),
       ),
       body: Center(
         child: Column(

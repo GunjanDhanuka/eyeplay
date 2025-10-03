@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 class GameResultScreen extends StatelessWidget {
   final int score;
+  final int stage;
 
-  const GameResultScreen({super.key, required this.score});
+  const GameResultScreen({super.key, required this.score, required this.stage});
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +27,14 @@ class GameResultScreen extends StatelessWidget {
               'Your Score: $score',
               style: const TextStyle(
                 fontSize: 32,
+                color: Color(0xFF546E7A),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You reached stage: $stage',
+              style: const TextStyle(
+                fontSize: 24,
                 color: Color(0xFF546E7A),
               ),
             ),

@@ -1,4 +1,5 @@
 
+import 'package:eyeplay/widgets/custom_feedback_dialog.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -28,7 +29,7 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('How to Play'),
-          content: Text('Find the hidden shape and draw a line around it.'),
+          content: Text('Find the hidden circle and draw a line around it.'),
           actions: <Widget>[
             TextButton(
               child: Text('Got it!'),
@@ -44,34 +45,15 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
 
   Path _getRandomShapePath(Size size) {
     final random = Random();
-    final shapeType = random.nextInt(3);
     final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
+    final safePadding = 120.0;
+    final double centerX =
+        random.nextDouble() * (size.width - 2 * safePadding) + safePadding;
+    final double centerY =
+        random.nextDouble() * (size.height - 2 * safePadding) + safePadding;
+    final center = Offset(centerX, centerY);
 
-    switch (shapeType) {
-      case 0: // Circle
-        path.addOval(Rect.fromCircle(center: center, radius: 100));
-        break;
-      case 1: // Square
-        path.addRect(Rect.fromCenter(center: center, width: 200, height: 200));
-        break;
-      case 2: // Star
-        final radius = 100.0;
-        final innerRadius = radius / 2;
-        final angle = (pi * 2) / 10;
-        for (int i = 0; i < 10; i++) {
-          final r = i.isEven ? radius : innerRadius;
-          final x = center.dx + cos(i * angle) * r;
-          final y = center.dy + sin(i * angle) * r;
-          if (i == 0) {
-            path.moveTo(x, y);
-          } else {
-            path.lineTo(x, y);
-          }
-        }
-        path.close();
-        break;
-    }
+    path.addOval(Rect.fromCircle(center: center, radius: 100));
     return path;
   }
 
@@ -83,10 +65,45 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
       }
     }
 
-    if (_points.isNotEmpty && (correctPoints / _points.length) > 0.7) {
+    if (_points.isNotEmpty && correctPoints > 2) {
       setState(() {
         _isShapeFound = true;
+        _score++;
       });
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CustomFeedbackDialog(
+            title: 'You found it!',
+            message: 'You are a master of shapes!',
+            buttonText: 'Next',
+            onPressed: () {
+              Navigator.of(context).pop();
+              _nextLevel();
+            },
+          );
+        },
+      );
+    } else {
+      setState(() {
+        _lives--;
+      });
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CustomFeedbackDialog(
+            title: 'Oops!',
+            message: 'That was not quite right. You have $_lives lives left.',
+            buttonText: 'Try Again',
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                _points.clear();
+              });
+            },
+          );
+        },
+      );
     }
   }
 
@@ -103,7 +120,7 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Find the Shape'),
+        title: const Text('Find the Shape!'),
       ),
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
@@ -132,38 +149,6 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
                   size: Size.infinite,
                 ),
               ),
-              if (_isShapeFound)
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'You found it!',
-                        style: TextStyle(fontSize: 24, color: Colors.green),
-                      ),
-                      ElevatedButton(
-                        onPressed: _nextLevel,
-                        child: Text('Next'),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Positioned(
-                  bottom: 16,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _points.clear();
-                        });
-                      },
-                      child: Text('Try Again'),
-                    ),
-                  ),
-                ),
             ],
           );
         },

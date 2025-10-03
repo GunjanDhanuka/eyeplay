@@ -20,8 +20,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'EyePlay',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.cyan,
+        colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.cyan).copyWith(secondary: Colors.orange),
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        appBarTheme: const AppBarTheme(
+          iconTheme: IconThemeData(color: Colors.white),
+          backgroundColor: Color(0xFF19BED5),
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+        ),
       ),
       home: const HomeScreen(),
       debugShowCheckedModeBanner: false,

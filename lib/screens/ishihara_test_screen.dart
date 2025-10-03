@@ -15,7 +15,6 @@ class _IshiharaTestScreenState extends State<IshiharaTestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ishihara Test'),
-        backgroundColor: const Color(0xFF1A237E),
       ),
       body: Center(
         child: Column(
