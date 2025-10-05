@@ -1,7 +1,8 @@
-
+import 'dart:math';
+import 'package:eyeplay/models/ishihara_level.dart';
+import 'package:eyeplay/screens/ishihara_result_screen.dart';
 import 'package:eyeplay/widgets/custom_feedback_dialog.dart';
 import 'package:flutter/material.dart';
-import 'dart:math';
 
 class ShapeFinderGameScreen extends StatefulWidget {
   @override
@@ -9,21 +10,37 @@ class ShapeFinderGameScreen extends StatefulWidget {
 }
 
 class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
+  late List<IshiharaLevel> _levels;
+  int _currentLevelIndex = 0;
   List<Offset> _points = <Offset>[];
-  late Path _shapePath;
-  bool _isShapeFound = false;
-  int _lives = 3;
+  Path? _shapePath;
   int _score = 0;
+  int _lives = 3;
+  late IshiharaLevel _currentLevel;
 
   @override
   void initState() {
     super.initState();
+    _levels = [
+      // Red-Green plates
+      IshiharaLevel(shapeColor: const Color(0xFF4CAF50), backgroundColor: const Color(0xFFF44336)),
+      IshiharaLevel(shapeColor: const Color(0xFFF08080), backgroundColor: const Color(0xFF98FB98)),
+      IshiharaLevel(shapeColor: const Color(0xFFD2B48C), backgroundColor: const Color(0xFF8FBC8F)),
+      // Blue-Yellow plates
+      IshiharaLevel(shapeColor: const Color(0xFF2196F3), backgroundColor: const Color(0xFFFFEB3B)),
+      IshiharaLevel(shapeColor: const Color(0xFF9370DB), backgroundColor: const Color(0xFFF0E68C)),
+      // Another plate
+      IshiharaLevel(shapeColor: const Color(0xFFFF4500), backgroundColor: const Color(0xFFADFF2F)),
+    ];
+    _currentLevel = _levels[_currentLevelIndex];
     WidgetsBinding.instance.addPostFrameCallback((_) => _showInstructions());
   }
 
   void _showInstructions() {
     final size = MediaQuery.of(context).size;
-    _shapePath = _getRandomShapePath(size);
+    setState(() {
+      _shapePath = _getRandomShapePath(size);
+    });
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -60,14 +77,13 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
   void _checkShape() {
     int correctPoints = 0;
     for (final point in _points) {
-      if (point != Offset.zero && _shapePath.contains(point)) {
+      if (point != Offset.zero && _shapePath!.contains(point)) {
         correctPoints++;
       }
     }
 
-    if (_points.isNotEmpty && correctPoints > 2) {
+    if (_points.isNotEmpty && correctPoints > 5) {
       setState(() {
-        _isShapeFound = true;
         _score++;
       });
       showDialog(
@@ -88,70 +104,111 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
       setState(() {
         _lives--;
       });
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return CustomFeedbackDialog(
-            title: 'Oops!',
-            message: 'That was not quite right. You have $_lives lives left.',
-            buttonText: 'Try Again',
-            onPressed: () {
-              Navigator.of(context).pop();
-              setState(() {
-                _points.clear();
-              });
-            },
-          );
-        },
+
+      if (_lives > 0) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CustomFeedbackDialog(
+              title: 'Oops!',
+              message: 'That was not quite right. You have $_lives lives left.',
+              buttonText: 'Try Again',
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _points.clear();
+                });
+              },
+            );
+          },
+        );
+      } else {
+        _endGameWithFailure();
+      }
+    }
+  }
+
+  void _endGameWithFailure() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => IshiharaResultScreen(
+          correctAnswers: _score,
+          totalPlates: _levels.length,
+          failedLevel: _currentLevel,
+          failedLevelIndex: _currentLevelIndex + 1,
+        ),
+      ),
+    );
+  }
+
+  void _nextLevel() {
+    if (_currentLevelIndex < _levels.length - 1) {
+      setState(() {
+        _currentLevelIndex++;
+        _currentLevel = _levels[_currentLevelIndex];
+        _points.clear();
+        final size = MediaQuery.of(context).size;
+        _shapePath = _getRandomShapePath(size);
+      });
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => IshiharaResultScreen(
+            correctAnswers: _score,
+            totalPlates: _levels.length,
+          ),
+        ),
       );
     }
   }
 
-  void _nextLevel() {
-    final size = MediaQuery.of(context).size;
-    setState(() {
-      _points.clear();
-      _isShapeFound = false;
-      _shapePath = _getRandomShapePath(size);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_shapePath == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Ishihara Test - Level ${_currentLevelIndex + 1}'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Find the Shape!'),
+        title: Text('Ishihara Test - Level ${_currentLevelIndex + 1}'),
       ),
-      body: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          _shapePath = _getRandomShapePath(Size(constraints.maxWidth, constraints.maxHeight));
-          return Stack(
-            children: [
-              RepaintBoundary(
-                child: CustomPaint(
-                  painter: ShapePainter(shapePath: _shapePath),
-                  size: Size.infinite,
-                ),
-              ),
-              GestureDetector(
-                onPanUpdate: (DragUpdateDetails details) {
-                  setState(() {
-                    RenderBox renderBox = context.findRenderObject() as RenderBox;
-                    _points.add(renderBox.globalToLocal(details.globalPosition));
-                  });
-                },
-                onPanEnd: (DragEndDetails details) {
-                  _points.add(Offset.zero);
-                  _checkShape();
-                },
-                child: CustomPaint(
-                  painter: DrawingPainter(points: _points),
-                  size: Size.infinite,
-                ),
-              ),
-            ],
-          );
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (DragUpdateDetails details) {
+          setState(() {
+            _points.add(details.localPosition);
+          });
         },
+        onPanEnd: (DragEndDetails details) {
+          setState(() {
+            _points.add(Offset.zero);
+          });
+          _checkShape();
+        },
+        child: Stack(
+          children: <Widget>[
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: ShapePainter(
+                  shapePath: _shapePath!,
+                  shapeColor: _currentLevel.shapeColor,
+                  backgroundColor: _currentLevel.backgroundColor,
+                ),
+                child: ConstrainedBox(constraints: const BoxConstraints.expand()),
+              ),
+            ),
+            CustomPaint(
+              painter: DrawingPainter(points: _points),
+              child: ConstrainedBox(constraints: const BoxConstraints.expand()),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -159,15 +216,19 @@ class _ShapeFinderGameScreenState extends State<ShapeFinderGameScreen> {
 
 class ShapePainter extends CustomPainter {
   final Path shapePath;
+  final Color shapeColor;
+  final Color backgroundColor;
 
-  ShapePainter({required this.shapePath});
+  ShapePainter({
+    required this.shapePath,
+    required this.shapeColor,
+    required this.backgroundColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final random = Random();
-    final shapeColor = Colors.red;
-    final backgroundColor = Colors.green;
 
-    // Draw background dots
     for (int i = 0; i < 2000; i++) {
       double x = random.nextDouble() * size.width;
       double y = random.nextDouble() * size.height;
@@ -175,7 +236,6 @@ class ShapePainter extends CustomPainter {
       canvas.drawCircle(Offset(x, y), radius, Paint()..color = backgroundColor);
     }
 
-    // Draw dots inside the shape
     for (int i = 0; i < 500; i++) {
       double x = random.nextDouble() * size.width;
       double y = random.nextDouble() * size.height;
@@ -187,8 +247,10 @@ class ShapePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
+  bool shouldRepaint(covariant ShapePainter oldDelegate) {
+    return oldDelegate.shapePath != shapePath ||
+        oldDelegate.shapeColor != shapeColor ||
+        oldDelegate.backgroundColor != backgroundColor;
   }
 }
 
